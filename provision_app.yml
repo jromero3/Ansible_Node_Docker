@@ -1,0 +1,82 @@
+---
+- hosts: localhost
+  connection: local
+  become: yes
+  environment:
+    DB_HOST: "mongodb://192.168.10.150:27017/posts"
+  tasks:
+    - name: Update and Upgrade
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    - name: Install NGINX
+      apt: name=nginx state=latest
+
+    - name: Start NGINX
+      service:
+          name: nginx
+          state: started
+
+    - name: Install git
+      apt: name=git state=latest force=yes
+
+    - name: install python-software-properties
+      apt: name=python-software-properties state=latest
+
+    - name: Get the nodejs GPG Key
+      apt_key:
+        url: "https://deb.nodesource.com/gpgkey/nodesource.gpg.key"
+        state: present
+
+    - name: Get the nodejs Repository
+      apt_repository:
+        repo: "deb https://deb.nodesource.com/node_6.x xenial main"
+        state: present
+
+    - name: Install nodejs
+      apt: name=nodejs state=latest force=yes
+
+    - name: Install npm
+      npm:
+        path: /home/ubuntu/app
+
+    - name: Install pm2
+      npm: name=pm2 global=yes
+
+    - name: Install faker
+      npm: name=faker global=yes
+
+    - name: Remove NGINX Default File
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Link Reverse Proxy in sites-available
+      file:
+        src: /home/ubuntu/nodeapp.conf
+        dest: /etc/nginx/sites-available/nodeapp.conf
+        state: link
+
+    - name: Link Reverse Proxy in sites-enabled
+      file:
+        src: /etc/nginx/sites-available/nodeapp.conf
+        dest: /etc/nginx/sites-enabled/nodeapp.conf
+        state: link
+
+    - name: Restart NGINX
+      service:
+        name: nginx
+        state: restarted
+
+    - name: Run seed.js with nodejs
+      command: node seed.js
+      args:
+      # shell: chdir=/home/ubuntu/app cmd= sudo node seeds/seed.js
+        chdir: /home/ubuntu/app/seeds
+
+    - name: Run app.js with nodejs
+      command: node app.js
+      args:
+      # shell: chdir=/home/ubuntu/app cmd= sudo node app.js
+        chdir: /home/ubuntu/app
